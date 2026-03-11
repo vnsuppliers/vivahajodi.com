@@ -41,7 +41,7 @@ const MyProfilePage = () => {
               <div><Label>Full Name</Label><Input defaultValue={`${user?.firstName} ${user?.lastName}`} className="mt-1.5" /></div>
               <div><Label>Gender</Label><Input defaultValue={user?.gender} className="mt-1.5" /></div>
               <div><Label>Date of Birth</Label><Input type="date" className="mt-1.5" /></div>
-              <div><Label>Height</Label><Input placeholder="5'6\"" className="mt-1.5" /></div>
+              <div><Label>Height</Label><Input placeholder={"5'6\""} className="mt-1.5" /></div>
               <div><Label>Weight</Label><Input placeholder="65 kg" className="mt-1.5" /></div>
               <div><Label>Marital Status</Label><Input placeholder="Never Married" className="mt-1.5" /></div>
             </div>
