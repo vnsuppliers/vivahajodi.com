@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, User, Search, Heart, Mail, MailOpen, Bookmark, ThumbsUp,
-  Eye, MessageCircle, Bell, ShieldBan, Flag, Settings, LogOut
+  Eye, MessageCircle, Bell, ShieldBan, Flag, Settings, LogOut,
+  CreditCard
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -18,14 +19,18 @@ const menuItems = [
   { title: "Matches", url: "/dashboard/matches", icon: Heart },
   { title: "Received Interests", url: "/dashboard/interests/received", icon: MailOpen },
   { title: "Sent Interests", url: "/dashboard/interests/sent", icon: Mail },
+  { title: "Rejected Interests", url: "/dashboard/interests/rejected", icon: Mail },
+  { title: "Accepted Interests", url: "/dashboard/interests/accepted", icon: Mail },
   { title: "Shortlisted", url: "/dashboard/shortlisted", icon: Bookmark },
-  { title: "Liked Profiles", url: "/dashboard/liked", icon: ThumbsUp },
   { title: "Profile Visitors", url: "/dashboard/visitors", icon: Eye },
   { title: "Messages", url: "/dashboard/messages", icon: MessageCircle },
   { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
   { title: "Blocked Users", url: "/dashboard/blocked", icon: ShieldBan },
-  { title: "Reports", url: "/dashboard/reports", icon: Flag },
+  { title: "Submitted Reports", url: "/dashboard/submitted-reports", icon: Flag },
+  { title: "Receieved Reports", url: "/dashboard/received-reports", icon: Flag },
   { title: "Settings", url: "/dashboard/settings", icon: Settings },
+ { title: "Subscription Plans", url: "/dashboard/subscription/subscription-plans", icon: CreditCard },
+ { title: "Success Story rating", url: "/dashboard/subscription/success-story-rating", icon: CreditCard },
 ];
 
 function AppSidebarContent() {
@@ -46,10 +51,10 @@ function AppSidebarContent() {
           <div className="p-4 border-b border-sidebar-border">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full gradient-hero flex items-center justify-center text-sm font-bold text-primary-foreground">
-                {user?.firstName?.[0]}{user?.lastName?.[0]}
+                {user?.first_name?.[0]}{user?.last_name?.[0]}
               </div>
               <div>
-                <p className="text-sm font-semibold text-sidebar-foreground">{user?.firstName} {user?.lastName}</p>
+                <p className="text-sm font-semibold text-sidebar-foreground">{user?.first_name} {user?.last_name}</p>
                 <p className="text-xs text-sidebar-foreground/60">{user?.email}</p>
               </div>
             </div>
@@ -88,7 +93,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebarContent />
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           <header className="h-14 flex items-center border-b border-border bg-background/80 backdrop-blur-sm px-4">
             <SidebarTrigger className="mr-4" />
             <Link to="/" className="flex items-center gap-2">
@@ -96,7 +101,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
               <span className="font-display font-bold text-foreground">Vivāha</span>
             </Link>
           </header>
-          <main className="flex-1 p-4 md:p-6 overflow-auto">
+          <main className="flex-1 p-4 md:p-6 overflow-y-auto overflow-x-hidden min-w-0">
             {children}
           </main>
         </div>

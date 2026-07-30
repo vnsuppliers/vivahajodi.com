@@ -1,112 +1,405 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { Heart } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
+import { registerSchema, RegisterErrors } from "@/schemas/register.schema";
+import { masterService } from "@/services/master.service";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+
+import {
+  RegisterForm,
+  MasterState,
+} from "@/interfaces/auth.interface";
+
+import { StepAccountInfo } from "@/components/auth/register/StepAccountInfo";
+import { StepLocationInfo } from "@/components/auth/register/StepLocationInfo";
+import { StepAboutInfo } from "@/components/auth/register/StepAboutInfo";
 
 const RegisterPage = () => {
-  const [form, setForm] = useState({
-    firstName: "", lastName: "", email: "", phone: "", password: "", confirmPassword: "",
-    gender: "", dateOfBirth: "", religion: "", motherTongue: "", country: "", state: "", city: ""
-  });
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+
+  const [errors, setErrors] =
+    useState<RegisterErrors>({});
+
   const { register } = useAuth();
+
   const navigate = useNavigate();
 
-  const update = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }));
+  const [form, setForm] =
+    useState<RegisterForm>({
+      first_name: "",
+      last_name: "",
+      email: "",
+      phone: "",
+      password: "",
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.firstName || !form.email || !form.password || !form.gender) {
-      toast.error("Please fill all required fields"); return;
+      gender_id: "",
+      religion_id: "",
+
+      country_id: "",
+      state_id: "",
+      city_id: "",
+
+      about: "",
+      date_of_birth: "",
+    });
+
+  const [masters, setMasters] =
+    useState<MasterState>({
+      countries: [],
+      states: [],
+      cities: [],
+      religions: [],
+      genders: [],
+    });
+
+  // Fetch Initial Masters
+  useEffect(() => {
+    masterService
+      .getCountries()
+      .then((data) =>
+        setMasters((prev) => ({
+          ...prev,
+          countries: data || [],
+        }))
+      );
+
+    masterService
+      .getReligions()
+      .then((data) =>
+        setMasters((prev) => ({
+          ...prev,
+          religions: data || [],
+        }))
+      );
+
+    masterService
+      .getGenders()
+      .then((data) =>
+        setMasters((prev) => ({
+          ...prev,
+          genders: data || [],
+        }))
+      );
+  }, []);
+
+  // Fetch States
+  useEffect(() => {
+    if (!form.country_id) {
+      setMasters((prev) => ({
+        ...prev,
+        states: [],
+        cities: [],
+      }));
+
+      return;
     }
-    if (form.password !== form.confirmPassword) {
-      toast.error("Passwords don't match"); return;
+
+    masterService
+      .getStates(Number(form.country_id))
+      .then((data) =>
+        setMasters((prev) => ({
+          ...prev,
+          states: data || [],
+          cities: [],
+        }))
+      );
+
+    setForm((prev) => ({
+      ...prev,
+      state_id: "",
+      city_id: "",
+    }));
+  }, [form.country_id]);
+
+  // Fetch Cities
+  useEffect(() => {
+    if (!form.state_id) {
+      setMasters((prev) => ({
+        ...prev,
+        cities: [],
+      }));
+
+      return;
     }
-    setLoading(true);
-    const success = await register(form);
-    setLoading(false);
-    if (success) { toast.success("Account created!"); navigate("/dashboard"); }
+
+    masterService
+      .getCities(Number(form.state_id))
+      .then((data) =>
+        setMasters((prev) => ({
+          ...prev,
+          cities: data || [],
+        }))
+      );
+
+    setForm((prev) => ({
+      ...prev,
+      city_id: "",
+    }));
+  }, [form.state_id]);
+
+  // Update Form
+  const update = (
+    key: keyof RegisterForm,
+    value: string
+  ) => {
+    let sanitized = value;
+
+    if (key === "phone") {
+      sanitized = value.replace(/\D/g, "");
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      [key]: sanitized,
+    }));
+
+    if (errors[key]) {
+      setErrors((prev) => ({
+        ...prev,
+        [key]: undefined,
+      }));
+    }
   };
 
-  const selectClass = "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground mt-1.5 h-10";
+  // Validate Step
+  const validateAndNext = () => {
+    let result;
+
+    // Step 1
+    if (step === 1) {
+      result = registerSchema
+        .pick({
+          first_name: true,
+          last_name: true,
+          email: true,
+          phone: true,
+          password: true,
+        })
+        .safeParse({
+          first_name: form.first_name,
+          last_name: form.last_name,
+          email: form.email,
+          phone: form.phone,
+          password: form.password,
+        });
+    }
+
+    // Step 2
+    if (step === 2) {
+      result = registerSchema
+        .pick({
+          gender_id: true,
+          religion_id: true,
+          country_id: true,
+          state_id: true,
+          city_id: true,
+        })
+        .safeParse({
+          gender_id: form.gender_id,
+          religion_id: form.religion_id,
+          country_id: form.country_id,
+          state_id: form.state_id,
+          city_id: form.city_id,
+        });
+    }
+
+    if (result && !result.success) {
+      const fieldErrors: RegisterErrors = {};
+
+      result.error.issues.forEach((issue) => {
+        const path =
+          issue.path[0] as keyof RegisterForm;
+
+        fieldErrors[path] = issue.message;
+      });
+
+      setErrors(fieldErrors);
+
+      return;
+    }
+
+    setErrors({});
+
+    setStep((prev) => prev + 1);
+  };
+
+  // Submit
+const handleSubmit = async (
+  e: React.FormEvent
+) => {
+  e.preventDefault();
+
+  console.log("SUBMIT CLICKED");
+
+  const result = registerSchema
+    .pick({
+      about: true,
+    })
+    .safeParse({
+      about: form.about,
+    });
+
+  if (!result.success) {
+    setErrors({
+      about:
+        result.error.issues[0]?.message,
+    });
+
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    console.log("FORM DATA =>", form);
+
+    const success =
+      await register(form);
+
+    console.log(
+      "REGISTER SUCCESS =>",
+      success
+    );
+
+    if (success) {
+      navigate("/dashboard");
+    }
+  } catch (error) {
+    console.error(
+      "HANDLE SUBMIT ERROR =>",
+      error
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
-    <div className="min-h-screen flex">
-      <div className="hidden lg:flex lg:w-2/5 gradient-hero items-center justify-center p-12">
+    <div className="min-h-screen flex bg-slate-50">
+      
+      {/* Left Panel */}
+      <div className="hidden lg:flex lg:w-2/5 gradient-hero items-center justify-center p-12 bg-primary text-white">
         <div className="text-center">
-          <Heart className="h-16 w-16 text-gold mx-auto mb-6 fill-gold/30" />
-          <h2 className="font-display text-3xl font-bold text-primary-foreground mb-4">Begin Your Journey</h2>
-          <p className="text-primary-foreground/80 max-w-sm">Create your profile and find your perfect life partner today.</p>
+          <Heart className="h-16 w-16 text-yellow-400 mx-auto mb-6 fill-yellow-400/30" />
+
+          <h2 className="text-3xl font-bold mb-4">
+            Join Vivāha
+          </h2>
+
+          <p className="text-white/80 max-w-sm mx-auto mb-8">
+            Start your journey to finding the
+            perfect life partner today.
+          </p>
+
+          <div className="flex justify-center gap-2">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className={`h-2 w-8 rounded-full transition-all ${
+                  step >= i
+                    ? "bg-white"
+                    : "bg-white/30"
+                }`}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 flex items-start justify-center p-6 overflow-auto">
-        <div className="w-full max-w-2xl py-8">
-          <Link to="/" className="flex items-center gap-2 mb-8">
+      {/* Right Panel */}
+      <div className="flex-1 p-6 lg:p-12 overflow-auto flex flex-col items-center justify-center">
+        <div className="w-full max-w-2xl bg-white p-8 rounded-3xl shadow-xl border">
+
+          {/* Logo */}
+          <Link
+            to="/"
+            className="flex items-center gap-2 mb-8"
+          >
             <Heart className="h-7 w-7 text-primary fill-primary" />
-            <span className="font-display text-xl font-bold text-foreground">Vivāha</span>
+
+            <span className="font-display text-xl font-bold text-foreground">
+              Vivāha
+            </span>
           </Link>
 
-          <h1 className="font-display text-2xl font-bold text-foreground mb-2">Create Account</h1>
-          <p className="text-muted-foreground mb-8">Fill in your details to get started</p>
+          {/* Heading */}
+          <h1 className="font-display text-2xl font-bold text-foreground mb-2">
+            Create Account
+          </h1>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><Label>First Name *</Label><Input placeholder="First name" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} className="mt-1.5" /></div>
-              <div><Label>Last Name</Label><Input placeholder="Last name" value={form.lastName} onChange={(e) => update("lastName", e.target.value)} className="mt-1.5" /></div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><Label>Email *</Label><Input type="email" placeholder="you@example.com" value={form.email} onChange={(e) => update("email", e.target.value)} className="mt-1.5" /></div>
-              <div><Label>Phone</Label><Input type="tel" placeholder="+91 98765 43210" value={form.phone} onChange={(e) => update("phone", e.target.value)} className="mt-1.5" /></div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><Label>Password *</Label><Input type="password" placeholder="••••••••" value={form.password} onChange={(e) => update("password", e.target.value)} className="mt-1.5" /></div>
-              <div><Label>Confirm Password *</Label><Input type="password" placeholder="••••••••" value={form.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} className="mt-1.5" /></div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Gender *</Label>
-                <select className={selectClass} value={form.gender} onChange={(e) => update("gender", e.target.value)}>
-                  <option value="">Select Gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                </select>
-              </div>
-              <div><Label>Date of Birth</Label><Input type="date" value={form.dateOfBirth} onChange={(e) => update("dateOfBirth", e.target.value)} className="mt-1.5" /></div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Religion</Label>
-                <select className={selectClass} value={form.religion} onChange={(e) => update("religion", e.target.value)}>
-                  <option value="">Select Religion</option>
-                  <option>Hindu</option><option>Muslim</option><option>Christian</option><option>Sikh</option><option>Buddhist</option><option>Jain</option><option>Other</option>
-                </select>
-              </div>
-              <div><Label>Mother Tongue</Label><Input placeholder="e.g. Hindi, Tamil" value={form.motherTongue} onChange={(e) => update("motherTongue", e.target.value)} className="mt-1.5" /></div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div><Label>Country</Label><Input placeholder="India" value={form.country} onChange={(e) => update("country", e.target.value)} className="mt-1.5" /></div>
-              <div><Label>State</Label><Input placeholder="Maharashtra" value={form.state} onChange={(e) => update("state", e.target.value)} className="mt-1.5" /></div>
-              <div><Label>City</Label><Input placeholder="Mumbai" value={form.city} onChange={(e) => update("city", e.target.value)} className="mt-1.5" /></div>
-            </div>
+          <p className="text-muted-foreground mb-8">
+            Please provide your details to
+            begin your journey
+          </p>
 
-            <div className="flex items-start gap-2">
-              <input type="checkbox" className="mt-1" required />
-              <p className="text-sm text-muted-foreground">
-                I agree to the <Link to="/terms" className="text-primary hover:underline">Terms & Conditions</Link> and <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
-              </p>
-            </div>
+          {/* Form */}
+          <form onSubmit={handleSubmit}>
 
-            <Button type="submit" className="w-full" disabled={loading}>{loading ? "Creating Account..." : "Create Account"}</Button>
+            {step === 1 && (
+              <StepAccountInfo
+                form={form}
+                errors={errors}
+                update={update}
+                nextStep={validateAndNext}
+              />
+            )}
+
+            {step === 2 && (
+              <StepLocationInfo
+                form={form}
+                errors={errors}
+                update={update}
+                nextStep={validateAndNext}
+                prevStep={() => setStep(1)}
+                masters={masters}
+              />
+            )}
+
+            {step === 3 && (
+              <StepAboutInfo
+                form={form}
+                errors={errors}
+                update={update}
+                prevStep={() => setStep(2)}
+                loading={loading}
+              />
+            )}
           </form>
 
-          <p className="text-sm text-muted-foreground text-center mt-6">
-            Already have an account? <Link to="/login" className="text-primary hover:underline font-medium">Sign In</Link>
-          </p>
+          {/* Footer */}
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center space-y-4">
+
+            <p className="text-slate-600 text-sm">
+              Already have an account?{" "}
+
+              <Link
+                to="/login"
+                className="text-primary font-bold hover:underline"
+              >
+                Sign In
+              </Link>
+            </p>
+
+            <div className="flex justify-center gap-4 text-[10px] text-slate-400 uppercase tracking-widest">
+              <Link
+                to="/terms"
+                className="hover:text-primary transition-colors"
+              >
+                Terms
+              </Link>
+
+              <span>•</span>
+
+              <Link
+                to="/privacy"
+                className="hover:text-primary transition-colors"
+              >
+                Privacy
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </div>
