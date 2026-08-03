@@ -5,7 +5,7 @@ import axios from "axios";
     headers: {
       "Content-Type": "application/json",
     },
-  });;
+  });
 
 api.interceptors.request.use(
   (config) => {

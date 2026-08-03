@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import React from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +31,7 @@ const SettingsPage = () => {
     const fetchProfile = async () => {
       try {
         const data = await ProfileSettingsService.getProfile();
+        
         setFormData({
           first_name: data.first_name ?? "",
           last_name: data.last_name ?? "",
@@ -38,9 +40,18 @@ const SettingsPage = () => {
           is_online: data.is_online === 1 || data.is_online === true,
         });
 
-        if (data.profile_image) {
-          setPreview(data.profile_image);
-        }
+  if (data.profile_image) {
+    // If the database path already starts with /api, use it as is. 
+    // Otherwise, prepend /api to leverage your Vite proxy.
+    const imagePath = data.profile_image.startsWith("http")
+      ? data.profile_image
+      : data.profile_image.startsWith("/api")
+      ? data.profile_image
+      : `/api${data.profile_image.startsWith("/") ? "" : "/"}${data.profile_image}`;
+
+    setPreview(imagePath);
+    console.log("Image: ", imagePath);
+  }
 
         setUserStatus(data.is_verified ?? 1);
         setStatusMessage(data.account_status_message ?? "");
